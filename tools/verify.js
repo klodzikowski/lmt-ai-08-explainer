@@ -73,7 +73,7 @@ console.log('held-out set: ' + test.n + ' MNIST test images (never used in train
 
 let failures = 0;
 function check(name, ok, detail) {
-  console.log((ok ? 'PASS' : 'FAIL') + '  ' + name + (detail ? ' — ' + detail : ''));
+  console.log((ok ? 'PASS' : 'FAIL') + '  ' + name + (detail ? ' (' + detail + ')' : ''));
   if (!ok) failures++;
 }
 
@@ -211,7 +211,7 @@ correct = 0;
 MODEL.samples.forEach((b64, digit) => {
   const px = Buffer.from(b64, 'base64');
   // nearest-neighbour 10x upscale then 10x10 average is identity for a 28x28
-  // image, but normalise() still runs — this checks it doesn't wreck anything.
+  // image, but normalise() still runs (this checks it doesn't wreck anything).
   for (let k = 0; k < 784; k++) x[k] = px[k] / 255;
   const xn = normalise(x);
   forward(xn);

@@ -13,7 +13,7 @@
     --text: #f2f2f2;
     --muted: #a8a8b0;
     --accent: #7c6ff0;
-    --bar: #4a4a52;
+    --bar: #56517f;
     --point: #ffd166;
     --good: #4fc3a1;
   }
@@ -48,7 +48,8 @@
     background: #000; cursor: crosshair; touch-action: none;
     width: 100%; max-width: 280px; border: 1px solid var(--border);
   }
-  #seen, #hidden { background: #202022; width: 100%; max-width: 280px; image-rendering: pixelated; }
+  #seen { background: #202022; width: 100%; max-width: 280px; image-rendering: pixelated; }
+  #hidden { background: #202022; width: 100%; max-width: 280px; }
   .controls { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
   button.clear {
     background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
@@ -73,19 +74,50 @@
   .confidence { color: var(--muted); font-size: 0.9rem; min-height: 1.4em; margin-bottom: 10px; }
   .bars .row { display: grid; grid-template-columns: 18px 1fr 58px; align-items: center; gap: 10px; padding: 3px 0; }
   .bars .lbl { font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
-  .bars .track { background: var(--panel-2); border-radius: 4px; height: 14px; overflow: hidden; }
-  .bars .fill { height: 100%; width: 0%; background: var(--bar); border-radius: 4px; transition: width 0.15s ease-out; }
+  .bars .track { display: block; background: var(--panel-2); border-radius: 4px; height: 14px; overflow: hidden; }
+  .bars .fill { display: block; height: 100%; width: 0%; background: var(--bar); border-radius: 4px; transition: width 0.15s ease-out; }
   .bars .pct { text-align: right; font-variant-numeric: tabular-nums; font-size: 0.85rem; color: var(--muted); }
   .bars .row.top .lbl, .bars .row.top .pct { color: var(--text); font-weight: 700; }
   .bars .row.top .fill { background: var(--accent); }
   .hoverline { min-height: 1.3em; }
+  .mono[tabindex] { cursor: help; }
+  .mono[tabindex]:hover, .mono[tabindex]:focus { border-color: var(--point); outline: none; }
+  .term {
+    position: relative;
+    border-bottom: 1px dotted var(--muted);
+    cursor: help;
+  }
+  .term::after {
+    content: attr(data-tip);
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 8px);
+    width: max-content;
+    max-width: 230px;
+    background: #17171a;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    font-weight: 400;
+    font-style: normal;
+    z-index: 10;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.12s;
+    pointer-events: none;
+  }
+  .term:hover::after, .term:focus::after { opacity: 1; visibility: visible; }
+  .term:focus { outline: none; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <h1>MNIST Network Explainer</h1>
-    <p>Draw a digit and watch it travel through our course network — 784 pixels in, 64 hidden neurons in the middle, 10 probabilities out. The weights were trained on 60,000 real handwritten digits (MNIST), score 97.7% on 10,000 digits the network never saw, and are baked into this one file: everything below is the real network doing real arithmetic, live in your browser.</p>
+    <p>Draw a digit and watch it travel through our course network (784 pixels in, 64 hidden neurons in the middle, 10 probabilities out). The weights were trained on 60,000 real handwritten digits (MNIST), score 97.7% on 10,000 digits the network never saw, and are baked into this one file: everything below is the real network doing real arithmetic, live in your browser.</p>
   </header>
 
   <div class="pipeline">
@@ -95,7 +127,6 @@
       <canvas id="draw" width="280" height="280" aria-label="Drawing canvas, draw a digit here"></canvas>
       <div class="controls">
         <button class="clear" id="clearBtn">Clear</button>
-        <span style="color:var(--muted);font-size:0.85rem">mouse or finger</span>
       </div>
       <p class="cap">…or tap a real handwritten digit from the test set:</p>
       <div class="samples" id="samples"></div>
@@ -104,23 +135,23 @@
     <div class="card">
       <h2><span class="step">Step 2</span>What the network sees</h2>
       <canvas id="seen" width="280" height="280" aria-label="The 28 by 28 input as the network sees it"></canvas>
-      <p class="cap">Your drawing is shrunk, centred and turned into a 28 × 28 grid — just <b style="color:var(--text)">784 numbers</b> between 0 (black) and 1 (white). This list of numbers is the <em>only</em> thing the network receives.</p>
-      <div class="mono" id="rowPeek">middle row of pixels: —</div>
+      <p class="cap">Your drawing is shrunk, centred and turned into a 28 × 28 grid: just <b style="color:var(--text)">784 numbers</b> between 0 (black) and 1 (white). This list of numbers is the <em>only</em> thing the network receives.</p>
+      <div class="mono" id="rowPeek" tabindex="0" title="Hover (or tap) to highlight this row on the grid above">middle row of the grid, as numbers: …</div>
     </div>
 
     <div class="card">
-      <h2><span class="step">Step 3</span>Hidden layer — 64 neurons</h2>
-      <canvas id="hidden" width="280" height="280" aria-label="Hidden layer activations, 64 neurons in an 8 by 8 grid"></canvas>
-      <p class="cap">Each square is one neuron (8 × 8 = 64). Every neuron looks at all 784 pixels, multiplies each by its own learnt weight, adds them up, and fires if the total is positive. <b style="color:var(--text)">Brighter = firing harder.</b></p>
-      <p class="cap hoverline" id="hoverInfo">Hover over a square to inspect one neuron.</p>
+      <h2><span class="step">Step 3</span>Hidden layer (64 neurons)</h2>
+      <canvas id="hidden" width="280" height="384" aria-label="Hidden layer activations, 64 neurons drawn as one column"></canvas>
+      <p class="cap">One bar per neuron, stacked into a column of 64 (a dense layer, drawn the way the course diagrams draw it). Each neuron looks at all 784 pixels, multiplies each by its own learnt weight, adds them up, and passes the total through <span class="term" tabindex="0" data-tip="ReLU (rectified linear unit): if the weighted sum is negative, the neuron outputs 0 and stays silent; otherwise it passes the sum on unchanged.">ReLU</span>. <b style="color:var(--text)">Longer bar = firing harder.</b></p>
+      <p class="cap hoverline" id="hoverInfo">Hover over a bar to inspect one neuron.</p>
     </div>
 
     <div class="card">
-      <h2><span class="step">Step 4</span>The verdict — 10 probabilities</h2>
+      <h2><span class="step">Step 4</span>The verdict (10 probabilities)</h2>
       <div class="verdict" id="verdict">Waiting for a digit…</div>
       <div class="confidence" id="confidence"></div>
       <div class="bars" id="bars"></div>
-      <p class="cap">Ten output neurons, one per digit, converted to percentages (softmax). They always add up to 100% — the network <em>must</em> place a bet, even on an empty canvas.</p>
+      <p class="cap">Ten output neurons, one per digit, converted to percentages by <span class="term" tabindex="0" data-tip="Softmax turns the 10 output scores into percentages: the bigger a neuron's score, the bigger its share, and the shares always add up to 100%.">softmax</span>. They always add up to 100% (the network <em>must</em> place a bet, even on an empty canvas).</p>
     </div>
 
   </div>
@@ -164,7 +195,7 @@
   const B2 = Float32Array.from(MODEL.b2);
 
   // ---------------------------------------------------------------
-  // Forward pass — the actual maths, nothing hidden.
+  // Forward pass (the actual maths, nothing hidden).
   // ---------------------------------------------------------------
   const hidden = new Float32Array(HID);
   const probs = new Float32Array(OUT);
@@ -192,7 +223,7 @@
   }
 
   // ---------------------------------------------------------------
-  // Preprocessing: same recipe as the original MNIST dataset —
+  // Preprocessing (same recipe as the original MNIST dataset):
   // crop the drawing, scale it to fit 20x20, centre it by its
   // "centre of ink" inside the 28x28 grid.
   // ---------------------------------------------------------------
@@ -359,12 +390,16 @@
     row.className = 'row';
     row.innerHTML = '<span class="lbl">' + d + '</span>' +
       '<span class="track"><span class="fill"></span></span>' +
-      '<span class="pct">–</span>';
+      '<span class="pct">…</span>';
     barsDiv.appendChild(row);
     rows.push({ row, fill: row.querySelector('.fill'), pct: row.querySelector('.pct') });
   }
 
+  let curInput = null;   // last normalised input, kept so hover can repaint
+  let peekHover = false; // is the row-of-numbers box hovered or focused?
+
   function renderSeen(x) {
+    curInput = x;
     const im = sctx.createImageData(28, 28);
     for (let i = 0; i < IN; i++) {
       const v = Math.round(x[i] * 255);
@@ -372,7 +407,7 @@
       im.data[i * 4 + 3] = 255;
     }
     // draw at 1:1 then let CSS pixelated-upscale via an offscreen trick:
-    // easiest crisp route — putImageData on a tiny canvas, drawImage scaled.
+    // easiest crisp route (putImageData on a tiny canvas, drawImage scaled).
     const t = document.createElement('canvas');
     t.width = 28; t.height = 28;
     t.getContext('2d').putImageData(im, 0, 0);
@@ -386,40 +421,76 @@
       sctx.beginPath(); sctx.moveTo(i * 10, 0); sctx.lineTo(i * 10, 280); sctx.stroke();
       sctx.beginPath(); sctx.moveTo(0, i * 10); sctx.lineTo(280, i * 10); sctx.stroke();
     }
+    // mark the middle row (the one shown as numbers below); on hover,
+    // dim the rest of the grid so the mapping is unmissable
+    const yMid = 14 * 10;
+    if (peekHover) {
+      sctx.fillStyle = 'rgba(0,0,0,0.55)';
+      sctx.fillRect(0, 0, 280, yMid);
+      sctx.fillRect(0, yMid + 10, 280, 280 - yMid - 10);
+      sctx.strokeStyle = '#ffd166';
+      sctx.lineWidth = 2;
+      sctx.strokeRect(1, yMid + 1, 278, 8);
+    } else {
+      sctx.strokeStyle = 'rgba(255,209,102,0.45)';
+      sctx.lineWidth = 1;
+      sctx.strokeRect(0.5, yMid + 0.5, 279, 9);
+    }
     // peek at the middle row of numbers
     const vals = [];
     for (let c = 0; c < 28; c++) vals.push(x[14 * 28 + c]);
-    rowPeek.innerHTML = '<b>middle row of pixels:</b> ' +
+    rowPeek.innerHTML = '<b style="color:var(--point)">middle row of the grid, as numbers:</b> ' +
       vals.map(v => v < 0.005 ? '0' : v.toFixed(1)).join(' ');
   }
+  function setPeek(on) {
+    if (peekHover === on) return;
+    peekHover = on;
+    if (curInput) renderSeen(curInput);
+  }
+  rowPeek.addEventListener('pointerenter', () => setPeek(true));
+  rowPeek.addEventListener('pointerleave', () => setPeek(false));
+  rowPeek.addEventListener('focus', () => setPeek(true));
+  rowPeek.addEventListener('blur', () => setPeek(false));
 
-  const CELL = 35; // 8 x 35 = 280
+  // the hidden layer drawn as a layer: one column of 64 neurons,
+  // each a horizontal bar whose length shows how hard it fires
+  const ROWH = 6;               // px per neuron
+  const HGRID_H = HID * ROWH;   // 64 x 6 = 384, the canvas height
+  let hoverJ = -1;
   function renderHidden() {
     let amax = 0;
     for (let j = 0; j < HID; j++) if (hidden[j] > amax) amax = hidden[j];
-    hctx.clearRect(0, 0, 280, 280);
+    hctx.clearRect(0, 0, 280, HGRID_H);
     for (let j = 0; j < HID; j++) {
-      const r = Math.floor(j / 8), c = j % 8;
+      const y = j * ROWH;
       const t = amax > 0 ? hidden[j] / amax : 0;
-      // interpolate panel background -> accent purple
-      const R = Math.round(32 + t * (124 - 32));
-      const G = Math.round(32 + t * (111 - 32));
-      const B = Math.round(34 + t * (240 - 34));
-      hctx.fillStyle = 'rgb(' + R + ',' + G + ',' + B + ')';
-      hctx.fillRect(c * CELL + 2, r * CELL + 2, CELL - 4, CELL - 4);
+      // faint track so every neuron stays visible, even when silent
+      hctx.fillStyle = 'rgba(255,255,255,0.06)';
+      hctx.fillRect(0, y + 1, 280, ROWH - 2);
+      if (t > 0) {
+        hctx.fillStyle = 'rgba(124,111,240,' + (0.35 + 0.65 * t).toFixed(3) + ')';
+        hctx.fillRect(0, y + 1, Math.max(3, t * 280), ROWH - 2);
+      }
+    }
+    if (hoverJ >= 0) {
+      hctx.strokeStyle = '#ffd166';
+      hctx.lineWidth = 1;
+      hctx.strokeRect(0.5, hoverJ * ROWH + 0.5, 279, ROWH - 1);
     }
   }
   hiddenCv.addEventListener('mousemove', (e) => {
     const rect = hiddenCv.getBoundingClientRect();
-    const c = Math.floor((e.clientX - rect.left) * 280 / rect.width / CELL);
-    const r = Math.floor((e.clientY - rect.top) * 280 / rect.height / CELL);
-    if (r < 0 || r > 7 || c < 0 || c > 7) return;
-    const j = r * 8 + c;
+    const j = Math.floor((e.clientY - rect.top) * HGRID_H / rect.height / ROWH);
+    if (j < 0 || j >= HID) return;
+    hoverJ = j;
+    renderHidden();
     hoverInfo.innerHTML = 'Neuron <b style="color:var(--text)">#' + (j + 1) + '</b> fires at <b style="color:var(--text)">' +
-      hidden[j].toFixed(2) + '</b>' + (hidden[j] === 0 ? ' (silent — its weighted sum was negative)' : '');
+      hidden[j].toFixed(2) + '</b>' + (hidden[j] === 0 ? ' (silent: its weighted sum was negative)' : '');
   });
   hiddenCv.addEventListener('mouseleave', () => {
-    hoverInfo.textContent = 'Hover over a square to inspect one neuron.';
+    hoverJ = -1;
+    renderHidden();
+    hoverInfo.textContent = 'Hover over a bar to inspect one neuron.';
   });
 
   function renderBars(empty) {
