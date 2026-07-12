@@ -26,6 +26,7 @@
     padding: 24px 16px 48px;
   }
   .wrap { max-width: 1320px; margin: 0 auto; }
+  header .course-id { color: var(--muted); font-size: 0.78rem; letter-spacing: 0.02em; margin-bottom: 6px; }
   header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; }
   header p { color: var(--muted); margin-top: 4px; max-width: 78ch; }
   .pipeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 20px; align-items: start; }
@@ -116,8 +117,9 @@
 <body>
 <div class="wrap">
   <header>
+    <p class="course-id">2MA LMT AI · Class 8: Neural networks 1 (dense networks)</p>
     <h1>MNIST Network Explainer</h1>
-    <p>Draw a digit and watch it travel through our course network (784 pixels in, 64 hidden neurons in the middle, 10 probabilities out). The weights were trained on 60,000 real handwritten digits (MNIST), score 97.7% on 10,000 digits the network never saw, and are baked into this one file: everything below is the real network doing real arithmetic, live in your browser.</p>
+    <p>Draw a digit and watch it travel through our example network (784 pixels in, 64 hidden neurons in the middle, 10 probabilities out). The weights were trained on 60,000 real handwritten digits (MNIST), score 97.7% on 10,000 digits the network never saw, and are baked into this one file: everything below is the real network doing real arithmetic, live in your browser.</p>
   </header>
 
   <div class="pipeline">
@@ -457,13 +459,15 @@
   const ROWH = 6;               // px per neuron
   const HGRID_H = HID * ROWH;   // 64 x 6 = 384, the canvas height
   let hoverJ = -1;
+  let layerEmpty = true;   // blank canvas: nothing has been fed in yet, so the layer reads as "waiting"
   function renderHidden() {
     let amax = 0;
     for (let j = 0; j < HID; j++) if (hidden[j] > amax) amax = hidden[j];
     hctx.clearRect(0, 0, 280, HGRID_H);
     for (let j = 0; j < HID; j++) {
       const y = j * ROWH;
-      const t = amax > 0 ? hidden[j] / amax : 0;
+      // on a blank canvas the input is all zeros, so show every neuron silent
+      const t = (layerEmpty || amax <= 0) ? 0 : hidden[j] / amax;
       // faint track so every neuron stays visible, even when silent
       hctx.fillStyle = 'rgba(255,255,255,0.06)';
       hctx.fillRect(0, y + 1, 280, ROWH - 2);
@@ -484,8 +488,12 @@
     if (j < 0 || j >= HID) return;
     hoverJ = j;
     renderHidden();
-    hoverInfo.innerHTML = 'Neuron <b style="color:var(--text)">#' + (j + 1) + '</b> fires at <b style="color:var(--text)">' +
-      hidden[j].toFixed(2) + '</b>' + (hidden[j] === 0 ? ' (silent: its weighted sum was negative)' : '');
+    if (layerEmpty) {
+      hoverInfo.textContent = 'Draw a digit (or tap a sample) to see which neurons fire.';
+    } else {
+      hoverInfo.innerHTML = 'Neuron <b style="color:var(--text)">#' + (j + 1) + '</b> fires at <b style="color:var(--text)">' +
+        hidden[j].toFixed(2) + '</b>' + (hidden[j] === 0 ? ' (silent: its weighted sum was negative)' : '');
+    }
   });
   hiddenCv.addEventListener('mouseleave', () => {
     hoverJ = -1;
@@ -523,6 +531,7 @@
     const x = normalise(raw);
     let ink = 0;
     for (let i = 0; i < IN; i++) ink += x[i];
+    layerEmpty = ink === 0;
     forward(x);
     renderSeen(x);
     renderHidden();
